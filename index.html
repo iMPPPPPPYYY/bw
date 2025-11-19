@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>For You</title>
+    <style>
+        body {
+            background-color: black;
+            color: white;
+            font-family: 'Courier New', monospace;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+        }
+        #text {
+            text-align: center;
+            white-space: pre-line;
+            font-size: 24px;
+            opacity: 0;
+            transform: translateZ(50px);
+            animation: shake 8s ease-in-out infinite;
+        }
+        
+        /* 3D摇晃动画 */
+        @keyframes shake {
+            0%, 100% { transform: translateX(0) translateY(0) translateZ(50px) rotateX(0) rotateY(0); }
+            25% { transform: translateX(-3px) translateY(2px) translateZ(50px) rotateX(1deg) rotateY(-1deg); }
+            50% { transform: translateX(2px) translateY(-3px) translateZ(50px) rotateX(-1deg) rotateY(1deg); }
+            75% { transform: translateX(-2px) translateY(1px) translateZ(50px) rotateX(0.5deg) rotateY(-0.5deg); }
+        }
+        
+        /* 花屏效果层 */
+        #glitch {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            opacity: 0;
+            z-index: 9999;
+        }
+        
+        .glitch-active {
+            animation: glitch 0.1s infinite;
+            background: linear-gradient(45deg, #ff00ff, #00ffff, #ffff00);
+            mix-blend-mode: overlay;
+        }
+        
+        @keyframes glitch {
+            0% { transform: translate(0, 0); filter: hue-rotate(0deg); }
+            10% { transform: translate(-2px, 1px); }
+            20% { transform: translate(3px, -2px); }
+            30% { transform: translate(-3px, 0); }
+            40% { transform: translate(1px, 3px); filter: hue-rotate(90deg); }
+            50% { transform: translate(-1px, -1px); }
+            60% { transform: translate(2px, 2px); }
+            70% { transform: translate(-2px, -3px); filter: hue-rotate(180deg); }
+            80% { transform: translate(3px, 1px); }
+            90% { transform: translate(-1px, 2px); }
+            100% { transform: translate(0, 0); filter: hue-rotate(360deg); }
+        }
+        
+        /* 彩色噪点条 */
+        .glitch-bar {
+            position: absolute;
+            background: currentColor;
+            opacity: 0.6;
+        }
+    </style>
+</head>
+<body>
+    <div id="text"></div>
+    <div id="glitch"></div>
+
+    <script>
+        const message = `Hope we can get along well! ^ ^\n\nsee u soon!\n\nmaybe NOT.`;
+        const textElement = document.getElementById('text');
+        const glitchElement = document.getElementById('glitch');
+        
+        // 1秒后文字全部出现
+        setTimeout(() => {
+            textElement.innerHTML = message;
+            textElement.style.opacity = 1;
+            
+            // 更频繁的花屏效果：每2秒触发一次，持续0.3秒
+            setInterval(() => {
+                glitchEffect();
+            }, 2000); // 每2秒一次
+            
+        }, 1000);
+        
+        // 强烈的花屏效果
+        function glitchEffect() {
+            // 清空之前的花屏元素
+            glitchElement.innerHTML = '';
+            
+            // 添加花屏激活类
+            glitchElement.classList.add('glitch-active');
+            glitchElement.style.opacity = 0.8;
+            
+            // 创建彩色噪点条
+            for (let i = 0; i < 20; i++) {
+                const bar = document.createElement('div');
+                bar.className = 'glitch-bar';
+                bar.style.left = Math.random() * 100 + 'vw';
+                bar.style.top = Math.random() * 100 + 'vh';
+                bar.style.width = Math.random() * 100 + 50 + 'px';
+                bar.style.height = Math.random() * 10 + 5 + 'px';
+                bar.style.background = `hsl(${Math.random() * 360}, 100%, 50%)`;
+                bar.style.transform = `rotate(${Math.random() * 360}deg)`;
+                glitchElement.appendChild(bar);
+            }
+            
+            // 0.3秒后结束花屏
+            setTimeout(() => {
+                glitchElement.style.opacity = 0;
+                glitchElement.classList.remove('glitch-active');
+                glitchElement.innerHTML = '';
+            }, 300);
+        }
+        
+        // 页面加载后立即测试一次花屏（让你确认效果）
+        setTimeout(() => {
+            glitchEffect();
+        }, 1500);
+    </script>
+</body>
+</html>
