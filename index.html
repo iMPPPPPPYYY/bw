@@ -13,126 +13,326 @@
             height: 100vh;
             margin: 0;
             overflow: hidden;
-            transition: all 0.5s ease;
+            image-rendering: pixelated;
         }
         
         #text {
             text-align: center;
             white-space: pre-line;
             font-size: 24px;
-            z-index: 2;
-            position: relative;
+            opacity: 0;
+            filter: blur(0.5px);
+            transform: translateZ(50px);
+            animation: shake 8s ease-in-out infinite;
         }
         
-        /* 全屏噪点花屏效果 */
-        #noise {
+        /* 3D摇晃效果 */
+        @keyframes shake {
+            0%, 100% { transform: translateX(0) translateY(0) translateZ(50px) rotateX(0) rotateY(0); }
+            25% { transform: translateX(-3px) translateY(2px) translateZ(50px) rotateX(1deg) rotateY(-1deg); }
+            50% { transform: translateX(2px) translateY(-3px) translateZ(50px) rotateX(-1deg) rotateY(1deg); }
+            75% { transform: translateX(-2px) translateY(1px) translateZ(50px) rotateX(0.5deg) rotateY(-0.5deg); }
+        }
+        
+        /* 整体花屏噪点层 */
+        #globalGlitch {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: 
-                linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px),
-                linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px);
-            background-size: 20px 20px;
             pointer-events: none;
-            z-index: 1;
+            z-index: 9998;
+            opacity: 0.15;
+            background-image: 
+                repeating-linear-gradient(0deg, transparent, transparent 1px, rgba(255,255,255,0.04) 1px, rgba(255,255,255,0.04) 2px),
+                repeating-linear-gradient(90deg, transparent, transparent 1px, rgba(255,255,255,0.03) 1px, rgba(255,255,255,0.03) 2px);
+        }
+        
+        /* 老式电视水平条纹 */
+        #scanlines {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 9997;
+            background: repeating-linear-gradient(
+                0deg,
+                rgba(0, 0, 0, 0.15) 0px,
+                rgba(0, 0, 0, 0.15) 1px,
+                transparent 1px,
+                transparent 2px
+            );
             animation: scanline 8s linear infinite;
         }
         
         @keyframes scanline {
-            0% { transform: translateY(0px); }
-            100% { transform: translateY(100vh); }
+            0% { background-position: 0 0; }
+            100% { background-position: 0 100%; }
         }
         
-        /* 颜色反转时的样式 */
-        body.inverted {
+        /* 花屏闪烁效果层 */
+        #glitch {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            opacity: 0;
+            z-index: 9999;
+        }
+        
+        .glitch-active {
+            animation: glitch 0.1s infinite;
+            background: linear-gradient(45deg, #fff, #aaa, #fff);
+            mix-blend-mode: overlay;
+        }
+        
+        @keyframes glitch {
+            0% { transform: translate(0, 0); filter: hue-rotate(0deg); }
+            20% { transform: translate(-2px, 2px); }
+            40% { transform: translate(-2px, -2px); }
+            60% { transform: translate(2px, 2px); }
+            80% { transform: translate(2px, -2px); }
+            100% { transform: translate(0, 0); }
+        }
+        
+        /* 故障竖线条纹 */
+        .vertical-glitch {
+            position: fixed;
+            top: 0;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.7);
+            pointer-events: none;
+            z-index: 9996;
+            animation: verticalFlicker 0.1s infinite;
+        }
+        
+        @keyframes verticalFlicker {
+            0%, 100% { opacity: 0.9; }
+            50% { opacity: 0.4; }
+        }
+        
+        /* 随机噪点 */
+        .noise-dot {
+            position: fixed;
+            width: 2px;
+            height: 2px;
+            background: white;
+            pointer-events: none;
+            z-index: 9995;
+            border-radius: 1px;
+        }
+        
+        /* 颜色反转样式 */
+        .inverted {
             background-color: white !important;
             color: black !important;
+        }
+        
+        .inverted #globalGlitch {
+            background-image: 
+                repeating-linear-gradient(0deg, transparent, transparent 1px, rgba(0,0,0,0.04) 1px, rgba(0,0,0,0.04) 2px),
+                repeating-linear-gradient(90deg, transparent, transparent 1px, rgba(0,0,0,0.03) 1px, rgba(0,0,0,0.03) 2px);
+        }
+        
+        .inverted #scanlines {
+            background: repeating-linear-gradient(
+                0deg,
+                rgba(255, 255, 255, 0.15) 0px,
+                rgba(255, 255, 255, 0.15) 1px,
+                transparent 1px,
+                transparent 2px
+            );
+        }
+        
+        .inverted .vertical-glitch {
+            background: rgba(0, 0, 0, 0.7);
+        }
+        
+        .inverted .noise-dot {
+            background: black;
         }
     </style>
 </head>
 <body>
     <div id="text"></div>
-    <div id="noise"></div>
+    <div id="globalGlitch"></div>
+    <div id="scanlines"></div>
+    <div id="glitch"></div>
 
     <script>
         const message = `Hope we can get along well! ^ ^\n\nsee u soon!\n\nmaybe NOT.`;
         const textElement = document.getElementById('text');
+        const glitchElement = document.getElementById('glitch');
+        let colorInverted = false;
+        let activeVerticalGlitches = 0;
+        const maxVerticalGlitches = 5;
         
-        // 1秒后显示文字
+        // 5秒后显示文字
         setTimeout(() => {
             textElement.innerHTML = message;
-        }, 1000);
-        
-        let colorInverted = false;
-        
-        // 30秒后开始检测颜色反转
-        setTimeout(() => {
-            startColorInvertCheck();
-        }, 30000);
-        
-        function startColorInvertCheck() {
-            if (colorInverted) return;
+            textElement.style.opacity = 1;
             
-            // 每5秒检查一次，5%概率触发
-            const checkInterval = setInterval(() => {
-                if (colorInverted) {
-                    clearInterval(checkInterval);
-                    return;
+            // 随机花屏闪烁
+            setInterval(() => {
+                if (Math.random() < 0.3) {
+                    glitchEffect();
                 }
-                
-                // 5%概率触发颜色反转
-                if (Math.random() < 0.05) {
-                    invertColors();
-                    clearInterval(checkInterval);
-                }
-            }, 5000);
+            }, 3000);
+            
+            // 启动故障竖线条纹
+            startVerticalGlitches();
+            
+            // 启动随机噪点
+            startNoiseDots();
+            
+            // 30秒后开始检测颜色反转
+            setTimeout(() => {
+                startColorInvertCheck();
+            }, 30000);
+            
+        }, 5000);
+        
+        // 花屏效果函数
+        function glitchEffect() {
+            glitchElement.innerHTML = '';
+            glitchElement.classList.add('glitch-active');
+            
+            for (let i = 0; i < 30; i++) {
+                const bar = document.createElement('div');
+                bar.style.position = 'absolute';
+                bar.style.left = Math.random() * 100 + 'vw';
+                bar.style.top = Math.random() * 100 + 'vh';
+                bar.style.width = Math.random() * 8 + 2 + 'px';
+                bar.style.height = Math.random() * 40 + 10 + 'px';
+                bar.style.background = `hsl(0, 0%, ${Math.random() * 100}%)`;
+                bar.style.opacity = Math.random() * 0.4;
+                bar.style.transform = `rotate(${Math.random() * 360}deg)`;
+                glitchElement.appendChild(bar);
+            }
+            
+            glitchElement.style.opacity = 0.6;
+            
+            setTimeout(() => {
+                glitchElement.style.opacity = 0;
+                glitchElement.classList.remove('glitch-active');
+            }, 200);
         }
         
+        // 故障竖线条纹函数 - 简化版
+        function startVerticalGlitches() {
+            setInterval(() => {
+                // 如果当前竖线数量少于最大值，有概率创建新的
+                if (activeVerticalGlitches < maxVerticalGlitches && Math.random() < 0.3) {
+                    createVerticalGlitchGroup();
+                }
+            }, Math.random() * 1000 + 500); // 间隔随机：0.5-1.5秒
+        }
+        
+        function createVerticalGlitchGroup() {
+            const groupCount = Math.floor(Math.random() * 2) + 1; // 1-2个条纹
+            
+            for (let i = 0; i < groupCount && activeVerticalGlitches < maxVerticalGlitches; i++) {
+                createVerticalGlitch();
+            }
+        }
+        
+        function createVerticalGlitch() {
+            activeVerticalGlitches++;
+            const verticalGlitch = document.createElement('div');
+            verticalGlitch.className = 'vertical-glitch';
+            
+            // 随机宽度（1-4px）
+            const width = Math.random() * 3 + 1;
+            verticalGlitch.style.width = width + 'px';
+            
+            // 随机位置
+            verticalGlitch.style.left = Math.random() * 100 + 'vw';
+            
+            // 保持全高
+            verticalGlitch.style.height = '100%';
+            verticalGlitch.style.top = '0';
+            
+            verticalGlitch.style.opacity = Math.random() * 0.7 + 0.3;
+            
+            document.body.appendChild(verticalGlitch);
+            
+            // 随机持续时间（0.1-0.8秒）
+            const duration = Math.random() * 700 + 100;
+            setTimeout(() => {
+                verticalGlitch.remove();
+                activeVerticalGlitches--;
+            }, duration);
+        }
+        
+        // 随机噪点函数
+        function startNoiseDots() {
+            setInterval(() => {
+                // 随机创建1-8个噪点
+                const dotCount = Math.floor(Math.random() * 8) + 1;
+                for (let i = 0; i < dotCount; i++) {
+                    createNoiseDot();
+                }
+            }, Math.random() * 300 + 100); // 间隔随机：0.1-0.4秒
+        }
+        
+        function createNoiseDot() {
+            const noiseDot = document.createElement('div');
+            noiseDot.className = 'noise-dot';
+            noiseDot.style.left = Math.random() * 100 + 'vw';
+            noiseDot.style.top = Math.random() * 100 + 'vh';
+            noiseDot.style.opacity = Math.random() * 0.8 + 0.2;
+            
+            // 随机大小（1-3px）
+            const size = Math.random() * 2 + 1;
+            noiseDot.style.width = size + 'px';
+            noiseDot.style.height = size + 'px';
+            noiseDot.style.borderRadius = size / 2 + 'px';
+            
+            document.body.appendChild(noiseDot);
+            
+            // 随机持续时间（0.05-0.3秒）
+            const duration = Math.random() * 250 + 50;
+            setTimeout(() => {
+                noiseDot.remove();
+            }, duration);
+        }
+        
+        // 颜色反转检测
+        function startColorInvertCheck() {
+            const checkInterval = setInterval(() => {
+                if (!colorInverted && Math.random() < 0.05) {
+                    invertColors();
+                    colorInverted = true;
+                    clearInterval(checkInterval);
+                }
+            }, 1000);
+        }
+        
+        // 颜色反转函数（只持续0.4秒）
         function invertColors() {
-            colorInverted = true;
             document.body.classList.add('inverted');
             
-            // 添加一些故障效果增强反转瞬间
-            const glitch = document.createElement('div');
-            glitch.style.cssText = `
-                position: fixed;
-                top: 0; left: 0;
-                width: 100%; height: 100%;
-                background: white;
-                mix-blend-mode: difference;
-                pointer-events: none;
-                z-index: 999;
-                animation: flash 0.3s ease-out;
-            `;
-            
-            const style = document.createElement('style');
-            style.textContent = `
-                @keyframes flash {
-                    0% { opacity: 1; }
-                    100% { opacity: 0; }
-                }
-            `;
-            
-            document.head.appendChild(style);
-            document.body.appendChild(glitch);
-            
-            // 动画结束后移除元素
             setTimeout(() => {
-                glitch.remove();
-            }, 300);
-        }
-        
-        // 增强噪点效果
-        function enhanceNoise() {
-            const noise = document.getElementById('noise');
-            setInterval(() => {
-                noise.style.opacity = 0.3 + Math.random() * 0.3;
+                document.body.classList.remove('inverted');
+            }, 400);
+            
+            setTimeout(() => {
+                glitchEffect();
             }, 100);
         }
         
-        enhanceNoise();
+        // 初始花屏测试
+        setTimeout(() => {
+            glitchEffect();
+        }, 2000);
     </script>
 </body>
 </html>
+
+
+
