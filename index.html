@@ -24,6 +24,7 @@
             filter: blur(0.5px);
             transform: translateZ(50px);
             animation: shake 8s ease-in-out infinite;
+            z-index: 9990;
         }
         
         /* 3D摇晃效果 */
@@ -115,6 +116,28 @@
             0%, 100% { opacity: 0.9; }
             50% { opacity: 0.4; }
         }
+
+        /* 反转色方块 */
+        .invert-area {
+            position: fixed;
+            background: white;
+            opacity: 1;
+            mix-blend-mode: difference;
+            filter: blur(0.8px) contrast(1.3);
+            image-rendering: pixelated;
+            z-index: 9995;
+            pointer-events: none;
+        }
+        
+        /* 方块内部噪点 */
+        .square-noise {
+            position: absolute;
+            width: 2px;
+            height: 2px;
+            background: black;
+            pointer-events: none;
+            mix-blend-mode: difference;
+        }
         
         /* 随机噪点 */
         .noise-dot {
@@ -123,7 +146,7 @@
             height: 2px;
             background: white;
             pointer-events: none;
-            z-index: 9995;
+            z-index: 9994;
             border-radius: 1px;
         }
         
@@ -189,6 +212,9 @@
             
             // 启动随机噪点
             startNoiseDots();
+
+            // 启动反转色方块
+            startInvertSquares();
             
             // 30秒后开始检测颜色反转
             setTimeout(() => {
@@ -223,18 +249,17 @@
             }, 200);
         }
         
-        // 故障竖线条纹函数 - 简化版
+        // 故障竖线条纹函数
         function startVerticalGlitches() {
             setInterval(() => {
-                // 如果当前竖线数量少于最大值，有概率创建新的
                 if (activeVerticalGlitches < maxVerticalGlitches && Math.random() < 0.3) {
                     createVerticalGlitchGroup();
                 }
-            }, Math.random() * 1000 + 500); // 间隔随机：0.5-1.5秒
+            }, Math.random() * 1000 + 500);
         }
         
         function createVerticalGlitchGroup() {
-            const groupCount = Math.floor(Math.random() * 2) + 1; // 1-2个条纹
+            const groupCount = Math.floor(Math.random() * 2) + 1;
             
             for (let i = 0; i < groupCount && activeVerticalGlitches < maxVerticalGlitches; i++) {
                 createVerticalGlitch();
@@ -246,38 +271,107 @@
             const verticalGlitch = document.createElement('div');
             verticalGlitch.className = 'vertical-glitch';
             
-            // 随机宽度（1-4px）
             const width = Math.random() * 3 + 1;
             verticalGlitch.style.width = width + 'px';
-            
-            // 随机位置
             verticalGlitch.style.left = Math.random() * 100 + 'vw';
-            
-            // 保持全高
             verticalGlitch.style.height = '100%';
             verticalGlitch.style.top = '0';
-            
             verticalGlitch.style.opacity = Math.random() * 0.7 + 0.3;
             
             document.body.appendChild(verticalGlitch);
             
-            // 随机持续时间（0.1-0.8秒）
             const duration = Math.random() * 700 + 100;
             setTimeout(() => {
                 verticalGlitch.remove();
                 activeVerticalGlitches--;
             }, duration);
         }
+
+        // 反转色方块函数
+        function startInvertSquares() {
+            setInterval(() => {
+                createInvertSquare();
+            }, Math.random() * 800 + 1200);
+        }
         
-        // 随机噪点函数
+        function createInvertSquare() {
+            const count = Math.floor(Math.random() * 2) + 1;
+            let firstSquarePos = null;
+            
+            for (let i = 0; i < count; i++) {
+                setTimeout(() => {
+                    const square = document.createElement('div');
+                    square.className = 'invert-area';
+                    
+                    const isBig = Math.random() > 0.5;
+                    const size = isBig ? 
+                        Math.random() * 100 + 200 : 
+                        Math.random() * 70 + 80;
+                    
+                    square.style.width = size + 'px';
+                    square.style.height = size + 'px';
+                    
+                    let left, top;
+                    if (i === 1 && firstSquarePos && Math.random() < 0.6) {
+                        const offset = size * 0.3;
+                        left = firstSquarePos.left + (Math.random() * offset - offset/2);
+                        top = firstSquarePos.top + (Math.random() * offset - offset/2);
+                        left = Math.max(0, Math.min(left, window.innerWidth - size));
+                        top = Math.max(0, Math.min(top, window.innerHeight - size));
+                    } else {
+                        left = Math.random() * (window.innerWidth - size);
+                        top = Math.random() * (window.innerHeight - size);
+                        if (i === 0) firstSquarePos = { left, top, size };
+                    }
+                    
+                    square.style.left = left + 'px';
+                    square.style.top = top + 'px';
+                    
+                    document.body.appendChild(square);
+                    
+                    addSquareNoise(square, size);
+                    
+                    const duration = Math.random() * 400 + 800;
+                    setTimeout(() => {
+                        if (square.parentNode) {
+                            square.remove();
+                        }
+                    }, duration);
+                    
+                }, i * 80);
+            }
+        }
+        
+        function addSquareNoise(square, size) {
+            const noiseCount = Math.floor(size * 0.1);
+            
+            for (let j = 0; j < noiseCount; j++) {
+                const noise = document.createElement('div');
+                noise.className = 'square-noise';
+                
+                noise.style.left = Math.random() * 100 + '%';
+                noise.style.top = Math.random() * 100 + '%';
+                
+                const noiseSize = Math.random() * 2 + 1;
+                noise.style.width = noiseSize + 'px';
+                noise.style.height = noiseSize + 'px';
+                noise.style.opacity = Math.random() * 0.7 + 0.3;
+                
+                square.appendChild(noise);
+            }
+        }
+        
+        document.addEventListener('click', function(event) {
+            createInvertSquare();
+        });
+        
         function startNoiseDots() {
             setInterval(() => {
-                // 随机创建1-8个噪点
                 const dotCount = Math.floor(Math.random() * 8) + 1;
                 for (let i = 0; i < dotCount; i++) {
                     createNoiseDot();
                 }
-            }, Math.random() * 300 + 100); // 间隔随机：0.1-0.4秒
+            }, Math.random() * 300 + 100);
         }
         
         function createNoiseDot() {
@@ -287,7 +381,6 @@
             noiseDot.style.top = Math.random() * 100 + 'vh';
             noiseDot.style.opacity = Math.random() * 0.8 + 0.2;
             
-            // 随机大小（1-3px）
             const size = Math.random() * 2 + 1;
             noiseDot.style.width = size + 'px';
             noiseDot.style.height = size + 'px';
@@ -295,14 +388,12 @@
             
             document.body.appendChild(noiseDot);
             
-            // 随机持续时间（0.05-0.3秒）
             const duration = Math.random() * 250 + 50;
             setTimeout(() => {
                 noiseDot.remove();
             }, duration);
         }
         
-        // 颜色反转检测
         function startColorInvertCheck() {
             const checkInterval = setInterval(() => {
                 if (!colorInverted && Math.random() < 0.05) {
@@ -313,7 +404,6 @@
             }, 1000);
         }
         
-        // 颜色反转函数（只持续0.4秒）
         function invertColors() {
             document.body.classList.add('inverted');
             
@@ -326,13 +416,9 @@
             }, 100);
         }
         
-        // 初始花屏测试
         setTimeout(() => {
             glitchEffect();
         }, 2000);
     </script>
 </body>
 </html>
-
-
-
